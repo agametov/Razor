@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Razor.Language.Legacy;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Microsoft.VisualStudio.LanguageServices.Razor
+namespace Microsoft.VisualStudio.LanguageServices.Razor.Serialization
 {
     internal class RazorDiagnosticJsonConverter : JsonConverter
     {

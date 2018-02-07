@@ -3,15 +3,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Composition;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Razor.Extensions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.CodeAnalysis.Razor.ProjectSystem;
+using Microsoft.VisualStudio.LanguageServices.Razor.Serialization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -21,58 +20,67 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
     {
         private readonly ErrorReporter _errorReporter;
         private readonly Workspace _workspace;
+        private readonly Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>[] _customFactories;
+        private readonly RazorTemplateEngineFactoryService _factory;
 
-        public DefaultTagHelperResolver(ErrorReporter errorReporter, Workspace workspace)
+        public DefaultTagHelperResolver(
+            ErrorReporter errorReporter,
+            Workspace workspace,
+            Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>[] customFactories,
+            RazorTemplateEngineFactoryService factory)
         {
             _errorReporter = errorReporter;
             _workspace = workspace;
+            _customFactories = customFactories;
+            _factory = factory;
         }
 
-        public async Task<TagHelperResolutionResult> GetTagHelpersAsync(Project project)
+        public async override Task<TagHelperResolutionResult> GetTagHelpersAsync(
+            ProjectSnapshot project, 
+            CancellationToken cancellationToken = default)
         {
             if (project == null)
             {
                 throw new ArgumentNullException(nameof(project));
             }
 
-            try
+            if (!project.IsInitialized || project.Configuration == null)
             {
-                TagHelperResolutionResult result;
+                return TagHelperResolutionResult.Empty;
+            }
 
-                // We're being overly defensive here because the OOP host can return null for the client/session/operation
-                // when it's disconnected (user stops the process).
-                //
-                // This will change in the future to an easier to consume API but for VS RTM this is what we have.
-                var client = await RazorLanguageServiceClientFactory.CreateAsync(_workspace, CancellationToken.None);
-                if (client != null)
+            bool supportsSerialization = false;
+            ICustomTemplateEngineFactory selected = null;
+            for (var i = 0; i < _customFactories.Length; i++)
+            {
+                var customFactory = _customFactories[i];
+                if (string.Equals(project.Configuration.ConfigurationName, customFactory.Metadata.ConfigurationName))
                 {
-                    using (var session = await client.CreateSessionAsync(project.Solution))
-                    {
-                        if (session != null)
-                        {
-                            var jsonObject = await session.InvokeAsync<JObject>(
-                                "GetTagHelpersAsync",
-                                new object[] { project.Id.Id, "Foo", },
-                                CancellationToken.None).ConfigureAwait(false);
-
-                            result = GetTagHelperResolutionResult(jsonObject);
-
-                            if (result != null)
-                            {
-                                return result;
-                            }
-                        }
-                    }
+                    selected = customFactory.Value;
+                    supportsSerialization = customFactory.Metadata.SupportsSerialization;
+                    break;
                 }
+            }
 
-                // The OOP host is turned off, so let's do this in process.
-                var compilation = await project.GetCompilationAsync(CancellationToken.None).ConfigureAwait(false);
-                result = GetTagHelpers(compilation);
+            TagHelperResolutionResult result = null;
+            if (selected == null || supportsSerialization)
+            {
+                result = await GetTagHelpersOutOfProcessAsync(selected, project);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            try
+            {   
+                // fall back to in process if needed.
+                result = await GetTagHelpersInProcessAsync(selected, project);
                 return result;
             }
             catch (Exception exception)
             {
-                _errorReporter.ReportError(exception, project);
+                _errorReporter.ReportError(exception, project.WorkspaceProject);
 
                 throw new InvalidOperationException(
                     Resources.FormatUnexpectedException(
@@ -82,19 +90,70 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
             }
         }
 
-        public override TagHelperResolutionResult GetTagHelpers(Compilation compilation)
+        private async Task<TagHelperResolutionResult> GetTagHelpersOutOfProcessAsync(
+            ICustomTemplateEngineFactory factory, 
+            ProjectSnapshot project)
         {
+            // We're being overly defensive here because the OOP host can return null for the client/session/operation
+            // when it's disconnected (user stops the process).
+            //
+            // This will change in the future to an easier to consume API but for VS RTM this is what we have.
+            var client = await RazorLanguageServiceClientFactory.CreateAsync(_workspace, CancellationToken.None);
+            if (client != null)
+            {
+                using (var session = await client.CreateSessionAsync(project.WorkspaceProject.Solution))
+                {
+                    if (session != null)
+                    {
+                        var args = new object[]
+                        {
+                            project.WorkspaceProject.Id.Id,
+                            project.WorkspaceProject.Name,
+                            factory == null ? null : factory.GetType().AssemblyQualifiedName,
+                            Serialize(project),
+                        };
+
+                        var json = await session.InvokeAsync<JObject>("GetTagHelpersAsync", args, CancellationToken.None).ConfigureAwait(false);
+                        var result = Deserialize(json);
+                        if (result != null)
+                        {
+                            return result;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private async Task<TagHelperResolutionResult> GetTagHelpersInProcessAsync(
+            ICustomTemplateEngineFactory factory,
+            ProjectSnapshot project)
+        {
+            RazorTemplateEngine templateEngine;
+            if (factory == null)
+            {
+                var engine = RazorEngine.CreateCore(project.Configuration, (b) =>
+                {
+                    b.Features.Add(new DefaultTagHelperDescriptorProvider() { DesignTime = true });
+                });
+                templateEngine =  new RazorTemplateEngine(engine, EmptyProject.Instance);
+            }
+            else
+            {
+                templateEngine = factory.Create(project.Configuration, EmptyProject.Instance, (b) =>
+                {
+                    b.Features.Add(new DefaultTagHelperDescriptorProvider() { DesignTime = true, });
+                });
+            }
+            
             var descriptors = new List<TagHelperDescriptor>();
 
-            var providers = new ITagHelperDescriptorProvider[]
-            {
-                new DefaultTagHelperDescriptorProvider() { DesignTime = true, },
-                new ViewComponentTagHelperDescriptorProvider(),
-            };
+            var providers = templateEngine.Engine.Features.OfType<ITagHelperDescriptorProvider>().ToArray();
 
             var results = new List<TagHelperDescriptor>();
             var context = TagHelperDescriptorProviderContext.Create(results);
-            context.SetCompilation(compilation);
+            context.SetCompilation(await project.WorkspaceProject.GetCompilationAsync());
 
             for (var i = 0; i < providers.Length; i++)
             {
@@ -108,15 +167,43 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
             return resolutionResult;
         }
 
-        private TagHelperResolutionResult GetTagHelperResolutionResult(JObject jsonObject)
+        private JObject Serialize(ProjectSnapshot snapshot)
+        {
+            var serializer = new JsonSerializer();
+            serializer.Converters.Add(RazorExtensionJsonConverter.Instance);
+            serializer.Converters.Add(RazorConfigurationJsonConverter.Instance);
+            serializer.Converters.Add(ProjectSnapshotJsonConverter.Instance);
+
+            return JObject.FromObject(snapshot, serializer);
+        }
+
+        private TagHelperResolutionResult Deserialize(JObject jsonObject)
         {
             var serializer = new JsonSerializer();
             serializer.Converters.Add(TagHelperDescriptorJsonConverter.Instance);
             serializer.Converters.Add(RazorDiagnosticJsonConverter.Instance);
+            serializer.Converters.Add(RazorExtensionJsonConverter.Instance);
+            serializer.Converters.Add(RazorConfigurationJsonConverter.Instance);
+            serializer.Converters.Add(ProjectSnapshotJsonConverter.Instance);
 
             using (var reader = jsonObject.CreateReader())
             {
                 return serializer.Deserialize<TagHelperResolutionResult>(reader);
+            }
+        }
+
+        private class EmptyProject : RazorProject
+        {
+            public static readonly EmptyProject Instance = new EmptyProject();
+
+            public override IEnumerable<RazorProjectItem> EnumerateItems(string basePath)
+            {
+                return Array.Empty<RazorProjectItem>();
+            }
+
+            public override RazorProjectItem GetItem(string path)
+            {
+                return null;
             }
         }
     }

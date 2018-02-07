@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.ComponentModel.Composition;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor;
 
@@ -12,13 +13,16 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
     // use TagHelperResolver.
     // ----------------------------------------------------------------------------------------------------
     [Export(typeof(ITagHelperResolver))]
-    internal class LegacyTagHelperResolver : DefaultTagHelperResolver, ITagHelperResolver
+    internal class LegacyTagHelperResolver : ITagHelperResolver
     {
         [ImportingConstructor]
-        public LegacyTagHelperResolver(
-            [Import(typeof(VisualStudioWorkspace))] Workspace workspace)
-            : base(workspace.Services.GetRequiredService<ErrorReporter>(), workspace)
+        public LegacyTagHelperResolver([Import(typeof(VisualStudioWorkspace))] Workspace workspace)
         {
+        }
+
+        public Task<TagHelperResolutionResult> GetTagHelpersAsync(Project project)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

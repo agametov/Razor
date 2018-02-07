@@ -37,5 +37,10 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 builder.Features.Add(new InstrumentationPass());
             }
         }
+
+        public static void RegisterViewComponentTagHelpers(IRazorEngineBuilder builder)
+        {
+            builder.Features.Add(new ViewComponentTagHelperDescriptorProvider());
+        }
     }
 }

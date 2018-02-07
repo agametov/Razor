@@ -6,8 +6,6 @@ using System.IO;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Razor.ProjectSystem;
-using Mvc1_X = Microsoft.AspNetCore.Mvc.Razor.Extensions.Version1_X;
-using MvcLatest = Microsoft.AspNetCore.Mvc.Razor.Extensions;
 
 namespace Microsoft.VisualStudio.Editor.Razor
 {
@@ -16,15 +14,24 @@ namespace Microsoft.VisualStudio.Editor.Razor
         private readonly static RazorConfiguration DefaultConfiguration = FallbackRazorConfiguration.MVC_2_0;
 
         private readonly ProjectSnapshotManager _projectManager;
+        private readonly Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>[] _factories;
 
-        public DefaultTemplateEngineFactoryService(ProjectSnapshotManager projectManager)
+        public DefaultTemplateEngineFactoryService(
+           ProjectSnapshotManager projectManager,
+           Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>[] customFactories)
         {
             if (projectManager == null)
             {
                 throw new ArgumentNullException(nameof(projectManager));
             }
 
+            if (customFactories == null)
+            {
+                throw new ArgumentNullException(nameof(customFactories));
+            }
+
             _projectManager = projectManager;
+            _factories = customFactories;
         }
 
         public override RazorTemplateEngine Create(string projectPath, Action<IRazorEngineBuilder> configure)
@@ -38,38 +45,27 @@ namespace Microsoft.VisualStudio.Editor.Razor
             var project = FindProject(projectPath);
             var configuration = project?.Configuration ?? DefaultConfiguration;
 
-            RazorEngine engine;
-            if (configuration.LanguageVersion.Major == 1)
+            for (var i = 0; i < _factories.Length; i++)
             {
-                engine = RazorEngine.CreateCore(configuration, b =>
+                var factory = _factories[i];
+                if (string.Equals(configuration.ConfigurationName, factory.Metadata.ConfigurationName))
                 {
-                    configure?.Invoke(b);
-
-                    Mvc1_X.RazorExtensions.Register(b);
-
-                    if (configuration.LanguageVersion.Minor >= 1)
-                    {
-                        Mvc1_X.RazorExtensions.RegisterViewComponentTagHelpers(b);
-                    }
-                });
-
-                var templateEngine = new Mvc1_X.MvcRazorTemplateEngine(engine, RazorProject.Create(projectPath));
-                templateEngine.Options.ImportsFileName = "_ViewImports.cshtml";
-                return templateEngine;
+                    return factory.Value.Create(configuration, RazorProject.Create(projectPath), configure ?? ((b) => { }));
+                }
             }
-            else
+
+            // If there's no factory to handle the configuration then fall back to a very basic configuration.
+            //
+            // This will stop a crash from happening in this case (misconfigured project), but will still make
+            // it obvious to the user that something is wrong.
+            var engine = RazorEngine.CreateCore(configuration, b =>
             {
-                engine = RazorEngine.CreateCore(configuration, b =>
-                {
-                    configure?.Invoke(b);
+                configure?.Invoke(b);
+            });
 
-                    MvcLatest.RazorExtensions.Register(b);
-                });
-
-                var templateEngine = new MvcLatest.MvcRazorTemplateEngine(engine, RazorProject.Create(projectPath));
-                templateEngine.Options.ImportsFileName = "_ViewImports.cshtml";
-                return templateEngine;
-            }
+            var templateEngine = new RazorTemplateEngine(engine, RazorProject.Create(projectPath));
+            templateEngine.Options.ImportsFileName = "_ViewImports.cshtml";
+            return templateEngine;
         }
 
         private ProjectSnapshot FindProject(string directory)

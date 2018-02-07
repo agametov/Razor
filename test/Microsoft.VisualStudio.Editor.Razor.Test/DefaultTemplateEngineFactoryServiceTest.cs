@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor;
@@ -22,11 +23,29 @@ namespace Microsoft.VisualStudio.Editor.Razor
             HostProject_For_1_1 = new HostProject("/TestPath/SomePath/Test.csproj", FallbackRazorConfiguration.MVC_1_1);
             HostProject_For_2_0 = new HostProject("/TestPath/SomePath/Test.csproj", FallbackRazorConfiguration.MVC_2_0);
 
+            CustomFactories = new Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>[]
+            {
+                new Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>(
+                    () => new LegacyTemplateEngineFactory_1_0(),
+                    typeof(LegacyTemplateEngineFactory_1_0).GetCustomAttribute<ExportCustomTemplateEngineFactoryAttribute>()),
+                new Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>(
+                    () => new LegacyTemplateEngineFactory_1_1(),
+                    typeof(LegacyTemplateEngineFactory_1_1).GetCustomAttribute<ExportCustomTemplateEngineFactoryAttribute>()),
+                new Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>(
+                    () => new LegacyTemplateEngineFactory_2_0(),
+                    typeof(LegacyTemplateEngineFactory_2_0).GetCustomAttribute<ExportCustomTemplateEngineFactoryAttribute>()),
+                new Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>(
+                    () => new LegacyTemplateEngineFactory_2_1(),
+                    typeof(LegacyTemplateEngineFactory_2_1).GetCustomAttribute<ExportCustomTemplateEngineFactoryAttribute>()),
+            };
+
             Workspace = new AdhocWorkspace();
 
             var info = ProjectInfo.Create(ProjectId.CreateNewId("Test"), VersionStamp.Default, "Test", "Test", LanguageNames.CSharp, filePath: "/TestPath/SomePath/Test.csproj");
             WorkspaceProject = Workspace.CurrentSolution.AddProject(info).GetProject(info.Id);
         }
+
+        private Lazy<ICustomTemplateEngineFactory, ICustomTemplateEngineFactoryMetadata>[] CustomFactories { get; }
 
         private HostProject HostProject_For_1_0 { get; }
 
@@ -47,7 +66,7 @@ namespace Microsoft.VisualStudio.Editor.Razor
             projectManager.HostProjectAdded(HostProject_For_2_0);
             projectManager.WorkspaceProjectAdded(WorkspaceProject);
 
-            var factoryService = new DefaultTemplateEngineFactoryService(projectManager);
+            var factoryService = new DefaultTemplateEngineFactoryService(projectManager, CustomFactories);
 
             // Act
             var engine = factoryService.Create("/TestPath/SomePath/", b =>
@@ -70,7 +89,7 @@ namespace Microsoft.VisualStudio.Editor.Razor
             projectManager.HostProjectAdded(HostProject_For_1_1);
             projectManager.WorkspaceProjectAdded(WorkspaceProject);
 
-            var factoryService = new DefaultTemplateEngineFactoryService(projectManager);
+            var factoryService = new DefaultTemplateEngineFactoryService(projectManager, CustomFactories);
 
             // Act
             var engine = factoryService.Create("/TestPath/SomePath/", b =>
@@ -93,7 +112,7 @@ namespace Microsoft.VisualStudio.Editor.Razor
             projectManager.HostProjectAdded(HostProject_For_1_0);
             projectManager.WorkspaceProjectAdded(WorkspaceProject);
 
-            var factoryService = new DefaultTemplateEngineFactoryService(projectManager);
+            var factoryService = new DefaultTemplateEngineFactoryService(projectManager, CustomFactories);
 
             // Act
             var engine = factoryService.Create("/TestPath/SomePath/", b =>
@@ -113,7 +132,7 @@ namespace Microsoft.VisualStudio.Editor.Razor
             // Arrange
             var projectManager = new TestProjectSnapshotManager(Workspace);
 
-            var factoryService = new DefaultTemplateEngineFactoryService(projectManager);
+            var factoryService = new DefaultTemplateEngineFactoryService(projectManager, CustomFactories);
 
             // Act
             var engine = factoryService.Create("/TestPath/DifferentPath/", b =>
@@ -136,7 +155,7 @@ namespace Microsoft.VisualStudio.Editor.Razor
             projectManager.HostProjectAdded(HostProject_For_2_0);
             projectManager.WorkspaceProjectAdded(WorkspaceProject);
 
-            var factoryService = new DefaultTemplateEngineFactoryService(projectManager);
+            var factoryService = new DefaultTemplateEngineFactoryService(projectManager, CustomFactories);
 
             // Act
             var engine = factoryService.Create("/TestPath/DifferentPath/", b =>

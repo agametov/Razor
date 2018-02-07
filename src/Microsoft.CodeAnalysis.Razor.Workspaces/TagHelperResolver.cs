@@ -4,19 +4,14 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Host;
+using Microsoft.CodeAnalysis.Razor.ProjectSystem;
 
 namespace Microsoft.CodeAnalysis.Razor
 {
     internal abstract class TagHelperResolver : ILanguageService
     {
-        public abstract TagHelperResolutionResult GetTagHelpers(Compilation compilation);
-
-        public virtual async Task<TagHelperResolutionResult> GetTagHelpersAsync(
-            Project project,
-            CancellationToken cancellationToken = default(CancellationToken))
-        {
-            var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
-            return GetTagHelpers(compilation);
-        }
+        public abstract Task<TagHelperResolutionResult> GetTagHelpersAsync(
+            ProjectSnapshot project,
+            CancellationToken cancellationToken = default(CancellationToken));
     }
 }
