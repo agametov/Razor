@@ -21,7 +21,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
             {
                 var client = await RazorLanguageServiceClientFactory.CreateAsync(workspace, cancellationToken);
 
-                using (var session = await client.CreateSessionAsync(project.Solution))
+                using (var session = await client.CreateSessionAsync(project.Solution, cancellationToken: cancellationToken))
                 {
                     var directives = await session.InvokeAsync<IEnumerable<DirectiveDescriptor>>("GetDirectivesAsync", new object[] { project.Id.Id, "Foo", }, cancellationToken).ConfigureAwait(false);
                     return directives;

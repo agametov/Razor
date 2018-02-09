@@ -44,7 +44,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
                 var client = await RazorLanguageServiceClientFactory.CreateAsync(_workspace, cancellationToken);
                 if (client != null)
                 {
-                    using (var session = await client.CreateSessionAsync(project.Solution))
+                    using (var session = await client.CreateSessionAsync(project.Solution, cancellationToken: cancellationToken))
                     {
                         if (session != null)
                         {

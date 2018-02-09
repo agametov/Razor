@@ -19,7 +19,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
             {
                 var client = await RazorLanguageServiceClientFactory.CreateAsync(workspace, cancellationToken);
 
-                using (var session = await client.CreateSessionAsync(project.Solution))
+                using (var session = await client.CreateSessionAsync(project.Solution, cancellationToken: cancellationToken))
                 {
                     var document = await session.InvokeAsync<RazorEngineDocument>("GenerateDocumentAsync", new object[] { project.Id.Id, "Foo", filePath, text }, cancellationToken).ConfigureAwait(false);
                     return document;
