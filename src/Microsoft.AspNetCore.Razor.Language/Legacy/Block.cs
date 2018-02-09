@@ -187,23 +187,25 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
         private static bool ChildrenEqual(IEnumerable<SyntaxTreeNode> left, IEnumerable<SyntaxTreeNode> right)
         {
-            IEnumerator<SyntaxTreeNode> leftEnum = left.GetEnumerator();
-            IEnumerator<SyntaxTreeNode> rightEnum = right.GetEnumerator();
-            while (leftEnum.MoveNext())
+            using (IEnumerator<SyntaxTreeNode> leftEnum = left.GetEnumerator(), rightEnum = right.GetEnumerator())
             {
-                if (!rightEnum.MoveNext() || // More items in left than in right
-                    !Equals(leftEnum.Current, rightEnum.Current))
+                while (leftEnum.MoveNext())
                 {
-                    // Nodes are not equal
+                    if (!rightEnum.MoveNext() || // More items in left than in right
+                        !Equals(leftEnum.Current, rightEnum.Current))
+                    {
+                        // Nodes are not equal
+                        return false;
+                    }
+                }
+
+                if (rightEnum.MoveNext())
+                {
+                    // More items in right than left
                     return false;
                 }
+                return true;
             }
-            if (rightEnum.MoveNext())
-            {
-                // More items in right than left
-                return false;
-            }
-            return true;
         }
 
         public override bool EquivalentTo(SyntaxTreeNode node)

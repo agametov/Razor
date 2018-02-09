@@ -386,7 +386,7 @@ namespace Microsoft.AspNetCore.Razor.Language.CodeGeneration
             writer.Write(name);
 
             var hasBaseType = !string.IsNullOrEmpty(baseType);
-            var hasInterfaces = interfaces != null && interfaces.Count() > 0;
+            var hasInterfaces = interfaces != null && interfaces.Any();
 
             if (hasBaseType || hasInterfaces)
             {

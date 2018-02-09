@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using Microsoft.AspNetCore.Razor.Language;
-using Microsoft.CodeAnalysis;
 
 namespace Microsoft.CodeAnalysis.Razor
 {
@@ -76,7 +75,7 @@ namespace Microsoft.CodeAnalysis.Razor
         {
             var targetElementAttributes = type
                 .GetAttributes()
-                .Where(attribute => attribute.AttributeClass == _htmlTargetElementAttributeSymbol);
+                .Where(attribute => attribute.AttributeClass == _htmlTargetElementAttributeSymbol).ToList();
 
             // If there isn't an attribute specifying the tag name derive it from the name
             if (!targetElementAttributes.Any())
@@ -135,7 +134,7 @@ namespace Microsoft.CodeAnalysis.Razor
 
         private void AddAllowedChildren(INamedTypeSymbol type, TagHelperDescriptorBuilder builder)
         {
-            var restrictChildrenAttribute = type.GetAttributes().Where(a => a.AttributeClass == _restrictChildrenAttributeSymbol).FirstOrDefault();
+            var restrictChildrenAttribute = type.GetAttributes().FirstOrDefault(a => a.AttributeClass == _restrictChildrenAttributeSymbol);
             if (restrictChildrenAttribute == null)
             {
                 return;
@@ -173,11 +172,10 @@ namespace Microsoft.CodeAnalysis.Razor
             {
                 return;
             }
-            string outputElementHint = null;
-            var outputElementHintAttribute = type.GetAttributes().Where(a => a.AttributeClass == _outputElementHintAttributeSymbol).FirstOrDefault();
+            var outputElementHintAttribute = type.GetAttributes().FirstOrDefault(a => a.AttributeClass == _outputElementHintAttributeSymbol);
             if (outputElementHintAttribute != null)
             {
-                outputElementHint = (string)(outputElementHintAttribute.ConstructorArguments[0]).Value;
+                var outputElementHint = (string)(outputElementHintAttribute.ConstructorArguments[0]).Value;
                 builder.TagOutputHint = outputElementHint;
             }
         }
@@ -189,8 +187,7 @@ namespace Microsoft.CodeAnalysis.Razor
         {
             var attributeNameAttribute = property
                 .GetAttributes()
-                .Where(a => a.AttributeClass == _htmlAttributeNameAttributeSymbol)
-                .FirstOrDefault();
+                .FirstOrDefault(a => a.AttributeClass == _htmlAttributeNameAttributeSymbol);
 
             bool hasExplicitName;
             string attributeName;
@@ -390,17 +387,16 @@ namespace Microsoft.CodeAnalysis.Razor
             do
             {
                 var members = typeSymbol.GetMembers();
-                for (var i = 0; i < members.Length; i++)
+                foreach (ISymbol member in members)
                 {
-                    var property = members[i] as IPropertySymbol;
-                    if (property != null &&
+                    if (member is IPropertySymbol property &&
                         property.Parameters.Length == 0 &&
                         property.GetMethod != null &&
                         property.GetMethod.DeclaredAccessibility == Accessibility.Public &&
-                        property.GetAttributes().Where(a => a.AttributeClass == _htmlAttributeNotBoundAttributeSymbol).FirstOrDefault() == null &&
+                        property.GetAttributes().FirstOrDefault(a => a.AttributeClass == _htmlAttributeNotBoundAttributeSymbol) == null &&
                         (property.GetAttributes().Any(a => a.AttributeClass == _htmlAttributeNameAttributeSymbol) ||
-                        property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public ||
-                        IsPotentialDictionaryProperty(property)) &&
+                         property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public ||
+                         IsPotentialDictionaryProperty(property)) &&
                         !accessibleProperties.ContainsKey(property.Name))
                     {
                         accessibleProperties.Add(property.Name, property);
@@ -418,7 +414,7 @@ namespace Microsoft.CodeAnalysis.Razor
         {
             if (DesignTime)
             {
-                var editorBrowsableAttribute = symbol.GetAttributes().Where(a => a.AttributeClass == _editorBrowsableAttributeSymbol).FirstOrDefault();
+                var editorBrowsableAttribute = symbol.GetAttributes().FirstOrDefault(a => a.AttributeClass == _editorBrowsableAttributeSymbol);
 
                 if (editorBrowsableAttribute == null)
                 {

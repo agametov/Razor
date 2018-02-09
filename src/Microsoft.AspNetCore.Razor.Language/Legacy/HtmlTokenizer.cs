@@ -255,7 +255,6 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         private bool AtSymbol()
         {
             return CurrentCharacter == '<' ||
-                   CurrentCharacter == '<' ||
                    CurrentCharacter == '!' ||
                    CurrentCharacter == '/' ||
                    CurrentCharacter == '?' ||

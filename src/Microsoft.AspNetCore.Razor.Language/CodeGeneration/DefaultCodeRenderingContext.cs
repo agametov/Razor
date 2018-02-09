@@ -73,8 +73,10 @@ namespace Microsoft.AspNetCore.Razor.Language.CodeGeneration
             Items[NewLineString] = codeDocument.Items[NewLineString];
             Items[SuppressUniqueIds] = codeDocument.Items[SuppressUniqueIds];
 
-            _scopes = new List<ScopeInternal>();
-            _scopes.Add(new ScopeInternal(nodeWriter));
+            _scopes = new List<ScopeInternal>
+            {
+                new ScopeInternal(nodeWriter)
+            };
         }
 
         // This will be initialized by the document writer when the context is 'live'.

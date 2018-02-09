@@ -165,7 +165,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
         private void WriteTargetElementString(CodeWriter writer, TagHelperDescriptor tagHelper)
         {
-            Debug.Assert(tagHelper.TagMatchingRules.Count() == 1);
+            Debug.Assert(tagHelper.TagMatchingRules.Count == 1);
 
             var rule = tagHelper.TagMatchingRules.First();
 

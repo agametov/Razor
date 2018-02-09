@@ -51,8 +51,7 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         public override bool Equals(object obj)
         {
-            var other = obj as RazorDiagnostic;
-            return other == null ? false : Equals(other);
+            return obj is RazorDiagnostic other && Equals(other);
         }
 
         string IFormattable.ToString(string ignore, IFormatProvider formatProvider)

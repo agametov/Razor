@@ -43,7 +43,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             // The -2 accounts for both the start and end tags. If the tag does not have a valid structure then there's
             // no end tag to ignore.
             var symbolOffset = validStructure ? 2 : 1;
-            var attributeChildren = tagBlock.Children.Skip(1).Take(tagBlock.Children.Count() - symbolOffset);
+            var attributeChildren = tagBlock.Children.Skip(1).Take(tagBlock.Children.Count - symbolOffset);
             var processedBoundAttributeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var child in attributeChildren)
@@ -408,7 +408,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
                 // In some malformed cases e.g. <p bar="false', the last Span (false' in the ex.) may contain more
                 // than a single HTML symbol. Do not ignore those other symbols.
-                var symbolCount = endSpan.Symbols.Count();
+                var symbolCount = endSpan.Symbols.Count;
                 var endSymbol = symbolCount == 1 ? (HtmlSymbol)endSpan.Symbols.First() : null;
 
                 // Checking to see if it's a quoted attribute, if so we should remove end quote
@@ -424,7 +424,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
             // If there's only 1 child at this point its value could be a simple markup span (treated differently than
             // block level elements for attributes).
-            if (block.Children.Count() == 1)
+            if (block.Children.Count == 1)
             {
                 var child = block.Children.First() as Span;
                 if (child != null)
@@ -686,12 +686,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 firstBoundAttribute.IndexerNamePrefix != null &&
                 name.Length == firstBoundAttribute.IndexerNamePrefix.Length;
 
-            var isDuplicateAttribute = false;
-            if (isBoundAttribute && !processedBoundAttributeNames.Add(name))
-            {
-                // A bound attribute with the same name has already been processed.
-                isDuplicateAttribute = true;
-            }
+            bool isDuplicateAttribute = isBoundAttribute && !processedBoundAttributeNames.Add(name);
 
             return new TryParseResult
             {

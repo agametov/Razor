@@ -234,7 +234,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions.Version1_X
 
         private string GetShortName(INamedTypeSymbol componentType)
         {
-            var viewComponentAttribute = componentType.GetAttributes().Where(a => a.AttributeClass == _viewComponentAttributeSymbol).FirstOrDefault();
+            var viewComponentAttribute = componentType.GetAttributes().FirstOrDefault(a => a.AttributeClass == _viewComponentAttributeSymbol);
             var name = viewComponentAttribute
                 ?.NamedArguments
                 .Where(namedArgument => string.Equals(namedArgument.Key, ViewComponentTypes.ViewComponent.Name, StringComparison.Ordinal))

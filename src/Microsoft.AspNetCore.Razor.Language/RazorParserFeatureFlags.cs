@@ -7,13 +7,7 @@ namespace Microsoft.AspNetCore.Razor.Language
     {
         public static RazorParserFeatureFlags Create(RazorLanguageVersion version)
         {
-            var allowMinimizedBooleanTagHelperAttributes = false;
-
-            if (version.CompareTo(RazorLanguageVersion.Version_2_1) >= 0)
-            {
-                // Added in 2.1
-                allowMinimizedBooleanTagHelperAttributes = true;
-            }
+            bool allowMinimizedBooleanTagHelperAttributes = version.CompareTo(RazorLanguageVersion.Version_2_1) >= 0;
 
             return new DefaultRazorParserFeatureFlags(allowMinimizedBooleanTagHelperAttributes);
         }

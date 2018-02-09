@@ -104,7 +104,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 return false;
             }
 
-            var attribute = type.GetAttributes().Where(a => a.AttributeClass == queryAttribute).FirstOrDefault();
+            var attribute = type.GetAttributes().FirstOrDefault(a => a.AttributeClass == queryAttribute);
 
             if (attribute != null)
             {

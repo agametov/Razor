@@ -891,7 +891,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 {
                     if (AllowedChildren != null && _prefixedAllowedChildren == null)
                     {
-                        Debug.Assert(Builder.BindingResult.Descriptors.Count() >= 1);
+                        Debug.Assert(Builder.BindingResult.Descriptors.Any());
 
                         _prefixedAllowedChildren = AllowedChildren.Select(allowedChild => _tagHelperPrefix + allowedChild).ToList();
                     }

@@ -1549,7 +1549,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 .OfType<Block>()
                 .Where(block =>
                     block.ChunkGenerator is AttributeBlockChunkGenerator &&
-                    block.Children.Count() >= 2)
+                    block.Children.Count >= 2)
                 .FirstOrDefault(IsTypeAttribute);
 
             if (typeAttribute != null)

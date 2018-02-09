@@ -179,7 +179,7 @@ namespace Microsoft.AspNetCore.Razor.Language
 
                     yield return diagnostic;
                 }
-                else if (IndexerAttributeNamePrefix.Length > 0 && string.IsNullOrWhiteSpace(IndexerAttributeNamePrefix))
+                else if (string.IsNullOrWhiteSpace(IndexerAttributeNamePrefix) && IndexerAttributeNamePrefix.Length > 0)
                 {
                     var diagnostic = RazorDiagnosticFactory.CreateTagHelper_InvalidBoundAttributeNullOrWhitespace(
                         _parent.GetDisplayName(),
